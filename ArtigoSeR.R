@@ -963,14 +963,14 @@ df <- municipio_ano
 library(ggplot2)
 library(dplyr)
 library(ggpubr)
+
 # Get unique active ingredients and split into two lists
 unique_ingredients <- unique(df$MUNICIPIO_VENDA)
 ingredient_list1 <- unique_ingredients[1:9]
 ingredient_list2 <- unique_ingredients[10:18]
 ingredient_list3 <- unique_ingredients[19:27]
 
-
-# Function to create plots
+# Function to create plots with p-value
 create_plots <- function(ingredients, nrows, ncols) {
   plots <- list() 
   
@@ -980,9 +980,20 @@ create_plots <- function(ingredients, nrows, ncols) {
     # Linear regression model
     model <- lm(MASSA_TOTAL_kg ~ ANO_VENDA, data = filtered_data)
     
+    # Get p-value from the model
+    p_value <- summary(model)$coefficients[2, 4]  # p-value for ANO_VENDA
+    
+    # Format p-value for display
+    p_label <- ifelse(p_value < 0.001, "< 0.001", paste("p =", round(p_value, 3)))
+    
     # Calculate min and max values for positioning the equation
     y_min <- min(filtered_data$MASSA_TOTAL_kg)
-    y_range <- max(filtered_data$MASSA_TOTAL_kg) - y_min
+    y_max <- max(filtered_data$MASSA_TOTAL_kg)
+    y_range <- y_max - y_min
+    
+    # Calculate the bottom-right position for the p-value
+    y_offset <- y_min + 0.05 * y_range  # Position near the bottom of the plot
+    x_offset <- max(filtered_data$ANO_VENDA) - 1  # Position near the right of the plot
     
     # Create the plot
     plot <- ggplot(filtered_data, aes(x = ANO_VENDA, y = MASSA_TOTAL_kg)) +
@@ -998,7 +1009,9 @@ create_plots <- function(ingredients, nrows, ncols) {
         aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~")),
         formula = y ~ x,
         parse = TRUE
-      ) 
+      ) +
+      # Add p-value as a text annotation at the bottom-right
+      annotate("text", x = x_offset, y = y_offset, label = p_label, color = "black", size = 4, hjust = 1, vjust = 0)
     
     plots[[ingredient]] <- plot 
   }
@@ -1013,8 +1026,8 @@ create_plots(ingredient_list1, 3, 3)
 # Create plots for the remaining 9 ingredients
 create_plots(ingredient_list2, 3, 3)
 
+# Create plots for the last 9 ingredients
 create_plots(ingredient_list3, 3, 3)
-
 
 #gerar tendencias municipios com o p valor #########
 
@@ -1107,9 +1120,7 @@ library(stringr)
 library(RColorBrewer)  # Para paletas de cores
 
 # Lista das capitais
-capitais <- c(
-  'RIO BRANCO', 'MACEIÓ', 'MACAPÁ', 'SALVADOR', 'JOÃO PESSOA', 'RECIFE'
-)
+capitais <- c('RIO BRANCO', 'MACEIÓ', 'MACAPÁ', 'MANAUS', 'SALVADOR', 'FORTALEZA', 'BRASÍLIA', 'VITÓRIA','GOIÂNIA','SÃO LUÍS','CUIABÁ','CAMPO GRANDE','BELO HORIZONTE','BELÉM','JOÃO PESSOA','CURITIBA','RECIFE','TERESINA','RIO DE JANEIRO','NATAL','PORTO ALEGRE','PORTO VELHO','BOA VISTA','FLORIANÓPOLIS','SÃO PAULO','ARACAJU','PALMAS')
 
 # Agrupar os dados por ano, princípio ativo e município
 dados_agrupados <- ABSOLUTO %>%
@@ -1299,6 +1310,50 @@ ggplot(df_METRONIDAZOL, aes(x = factor(ANO_VENDA), y = MUNICIPIO_VENDA, fill = `
     panel.grid = element_blank(),  # Remove gridlines
     axis.ticks = element_blank()   # Remove axis ticks
   )
+
+
+# Carregar pacotes necessários
+library(ggplot2)
+library(dplyr)
+
+# Obter lista única de princípios ativos
+unique_ingredients <- unique(df$PRINCIPIO_ATIVO_PRINCIPAL)
+
+# Função para criar mapas de calor
+create_heatmaps <- function(ingredients) {
+  plots <- list()
+  
+  # Iterar sobre cada princípio ativo
+  for (ingredient in ingredients) {
+    # Filtrar os dados para o princípio ativo atual
+    df_filtered <- df %>% filter(PRINCIPIO_ATIVO_PRINCIPAL == ingredient)
+    
+    # Criar o mapa de calor
+    plot <- ggplot(df_filtered, aes(x = factor(ANO_VENDA), y = MUNICIPIO_VENDA, fill = `PEC (µg.L-1)`)) +
+      geom_tile() +
+      geom_text(aes(label = round(`PEC (µg.L-1)`, 2)), color = "black", size = 3) +  # Exibir valores de PEC
+      scale_fill_gradient(low = "yellow", high = "red") +
+      labs(title = paste("Mapa de calor para PEC da", ingredient, "por ano e cidade"),
+           x = "Ano", y = "Município", fill = "PEC (µg.L-1)") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    plots[[ingredient]] <- plot
+  }
+  
+  # Exibir os gráficos (ou arranjar para salvar)
+  return(plots)
+}
+
+# Gerar os mapas de calor para todos os princípios ativos
+heatmaps <- create_heatmaps(unique_ingredients)
+
+# Exibir os gráficos
+for (plot in heatmaps) {
+  print(plot)
+}
+
+
+
 
 #SALVAR BANCO DE DADOS COMO csv####
 
